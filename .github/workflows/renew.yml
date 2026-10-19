@@ -19,16 +19,18 @@ jobs:
         run: curl -fsS "https://www.duckdns.org/update?domains=$SUBDOMAIN&token=$DUCKDNS_TOKEN&ip=127.0.0.1" | grep -q OK
       - name: Issue cert (DNS-01 via DuckDNS TXT)
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq certbot jq
-          pip install --user certbot-dns-duckdns
+          sudo apt-get install -y -qq jq
+          python3 -m venv .venv
+          .venv/bin/pip install -q certbot certbot-dns-duckdns
           echo "dns_duckdns_token = $DUCKDNS_TOKEN" > duck.ini && chmod 600 duck.ini
-          sudo "$(python3 -m site --user-base)/bin/certbot" certonly --non-interactive --agree-tos \
+          .venv/bin/certbot certonly --non-interactive --agree-tos \
             -m "${{ vars.ACME_EMAIL }}" \
             --authenticator dns-duckdns --dns-duckdns-credentials duck.ini \
             --dns-duckdns-propagation-seconds 60 \
-            -d "$SUBDOMAIN.duckdns.org" --config-dir ./le --work-dir ./le/w --logs-dir ./le/l
+            -d "$SUBDOMAIN.duckdns.org" \
+            --config-dir "$PWD/le" --work-dir "$PWD/le/w" --logs-dir "$PWD/le/l"
       - name: Build pack.json
-        run: sudo ./scripts/make-pack.sh "./le/live/$SUBDOMAIN.duckdns.org" "$SUBDOMAIN.duckdns.org" site
+        run: ./scripts/make-pack.sh "$PWD/le/live/$SUBDOMAIN.duckdns.org" "$SUBDOMAIN.duckdns.org" site
       - uses: actions/upload-pages-artifact@v3
         with: { path: site }
       - id: deploy
