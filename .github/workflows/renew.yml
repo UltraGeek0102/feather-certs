@@ -30,7 +30,7 @@ jobs:
             -d "$SUBDOMAIN.duckdns.org" \
             --config-dir "$PWD/le" --work-dir "$PWD/le/w" --logs-dir "$PWD/le/l"
       - name: Build pack.json
-        run: ./scripts/make-pack.sh "$PWD/le/live/$SUBDOMAIN.duckdns.org" "$SUBDOMAIN.duckdns.org" site
+        run:  bash ./scripts/make-pack.sh "$PWD/le/live/$SUBDOMAIN.duckdns.org" "$SUBDOMAIN.duckdns.org" site
       - uses: actions/upload-pages-artifact@v3
         with: { path: site }
       - id: deploy
