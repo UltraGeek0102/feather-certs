@@ -1,0 +1,35 @@
+name: Renew Feather cert
+on:
+  schedule: [{ cron: "0 3 1,15 * *" }]   # twice a month; LE certs last 90 days
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+    environment: { name: github-pages, url: "${{ steps.deploy.outputs.page_url }}" }
+    env:
+      SUBDOMAIN: ${{ vars.DUCKDNS_SUBDOMAIN }}   # e.g. dhruv-feather  (-> dhruv-feather.duckdns.org)
+      DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Point hostname at 127.0.0.1
+        run: curl -fsS "https://www.duckdns.org/update?domains=$SUBDOMAIN&token=$DUCKDNS_TOKEN&ip=127.0.0.1" | grep -q OK
+      - name: Issue cert (DNS-01 via DuckDNS TXT)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq certbot jq
+          pip install --user certbot-dns-duckdns
+          echo "dns_duckdns_token = $DUCKDNS_TOKEN" > duck.ini && chmod 600 duck.ini
+          sudo "$(python3 -m site --user-base)/bin/certbot" certonly --non-interactive --agree-tos \
+            -m "${{ vars.ACME_EMAIL }}" \
+            --authenticator dns-duckdns --dns-duckdns-credentials duck.ini \
+            --dns-duckdns-propagation-seconds 60 \
+            -d "$SUBDOMAIN.duckdns.org" --config-dir ./le --work-dir ./le/w --logs-dir ./le/l
+      - name: Build pack.json
+        run: sudo ./scripts/make-pack.sh "./le/live/$SUBDOMAIN.duckdns.org" "$SUBDOMAIN.duckdns.org" site
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site }
+      - id: deploy
+        uses: actions/deploy-pages@v4
